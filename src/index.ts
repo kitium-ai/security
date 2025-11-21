@@ -9,13 +9,29 @@ export { ConfigManager, configManager } from './config';
 export { AuthenticationService, authenticationService } from './services/authentication';
 export { AuthorizationService, authorizationService } from './services/authorization';
 export { AuditLogService, auditLogService } from './services/auditLog';
+export { CSRFProtectionService, csrfProtectionService } from './services/csrf';
 
 // Utils
 export { EncryptionService, encryptionService } from './utils/encryption';
 export { logger } from './utils/logger';
+export { InputSanitizer, inputSanitizer } from './utils/sanitize';
 
 // Middleware
 export { SecurityMiddlewareFactory, securityMiddlewareFactory } from './middleware/factory';
+
+// Server
+export { TLSConfigurationService, tlsConfigurationService } from './server/https';
+export type { TLSConfig, HTTPSServerOptions } from './server/https';
+
+// Database
+export {
+  SafeQueryBuilder,
+  SQLInjectionExamples,
+  DatabaseValidation,
+  safeQueryBuilder,
+  sqlInjectionExamples,
+  databaseValidation,
+} from './database/sqlInjectionPrevention';
 
 // Types
 export type {
@@ -55,7 +71,10 @@ export async function initializeSecurityMiddleware() {
     authenticationService: (await import('./services/authentication')).authenticationService,
     authorizationService: (await import('./services/authorization')).authorizationService,
     auditLogService: (await import('./services/auditLog')).auditLogService,
+    csrfProtectionService: (await import('./services/csrf')).csrfProtectionService,
     encryptionService: (await import('./utils/encryption')).encryptionService,
+    inputSanitizer: (await import('./utils/sanitize')).inputSanitizer,
+    tlsConfigurationService: (await import('./server/https')).tlsConfigurationService,
     config,
   };
 }

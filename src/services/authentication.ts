@@ -5,7 +5,7 @@
 import jwt from 'jsonwebtoken';
 import bcryptjs from 'bcryptjs';
 import { configManager } from '../config';
-import { AuthTokenPayload, SecurityEvent } from '../types';
+import { AuthTokenPayload } from '../types';
 import { logger } from '../utils/logger';
 
 export class AuthenticationService {
@@ -16,10 +16,14 @@ export class AuthenticationService {
    * Generate JWT token
    */
   public generateToken(payload: Omit<AuthTokenPayload, 'iat' | 'exp'>): string {
-    const token = jwt.sign(payload, this.config.jwtSecret, {
-      expiresIn: this.config.jwtExpiration,
-      algorithm: 'HS256',
-    });
+    const token = jwt.sign(
+      payload,
+      this.config.jwtSecret,
+      {
+        expiresIn: this.config.jwtExpiration,
+        algorithm: 'HS256',
+      } as jwt.SignOptions
+    );
 
     logger.info('Token generated', {
       userId: payload.userId,

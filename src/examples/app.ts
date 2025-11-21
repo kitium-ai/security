@@ -30,7 +30,7 @@ async function initializeApp(): Promise<Express> {
   app.use(factory.createAuditLoggingMiddleware());
 
   // Public routes
-  app.get('/health', (req: Request, res: Response) => {
+  app.get('/health', (_req: Request, res: Response) => {
     res.json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -38,23 +38,26 @@ async function initializeApp(): Promise<Express> {
   });
 
   // Authentication endpoint
-  app.post('/auth/login', async (req: Request, res: Response) => {
+  app.post('/auth/login', async (req: Request, res: Response): Promise<void> => {
     const context = req.securityContext;
 
     if (!context) {
-      return res.status(500).json({ error: 'Security context not initialized' });
+      res.status(500).json({ error: 'Security context not initialized' });
+      return;
     }
 
     // Validate request
     const { userId, organizationId, role, password } = req.body;
 
     if (!userId || !organizationId || !role || !password) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      res.status(400).json({ error: 'Missing required fields' });
+      return;
     }
 
     // In production, verify password against database
     if (password !== 'demo-password') {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
     }
 
     // Generate token
@@ -76,12 +79,13 @@ async function initializeApp(): Promise<Express> {
   app.get(
     '/api/profile',
     factory.createAuthenticationMiddleware(),
-    (req: Request, res: Response) => {
+    (req: Request, res: Response): void => {
       const context = req.securityContext;
       const payload = req.tokenPayload;
 
       if (!context || !payload) {
-        return res.status(500).json({ error: 'Security context not initialized' });
+        res.status(500).json({ error: 'Security context not initialized' });
+        return;
       }
 
       res.json({
@@ -133,11 +137,12 @@ async function initializeApp(): Promise<Express> {
     '/api/admin/audit-logs',
     factory.createAuthenticationMiddleware(),
     factory.createAuthorizationMiddleware(['manage:audit-logs']),
-    (req: Request, res: Response) => {
+    (req: Request, res: Response): void => {
       const context = req.securityContext;
 
       if (!context) {
-        return res.status(500).json({ error: 'Security context not initialized' });
+        res.status(500).json({ error: 'Security context not initialized' });
+        return;
       }
 
       const logs = require('../services/auditLog').auditLogService.getLogsForOrganization(

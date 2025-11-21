@@ -82,7 +82,7 @@ export class AuthorizationService {
     }
 
     // Check for wildcard permissions (e.g., 'read:*')
-    const [action, resource] = requiredPermission.split(':');
+    const [action] = requiredPermission.split(':');
     const wildcardPermission = `${action}:*`;
 
     if (tokenPayload.permissions.includes(wildcardPermission)) {

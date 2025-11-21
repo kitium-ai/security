@@ -8,7 +8,6 @@ import path from 'path';
 import { AuditLog, SecurityEvent } from '../types';
 import { configManager } from '../config';
 import { logger } from '../utils/logger';
-import { encryptionService } from '../utils/encryption';
 
 export class AuditLogService {
   private logFile: string;
@@ -34,8 +33,8 @@ export class AuditLogService {
    */
   public logSecurityEvent(event: SecurityEvent): void {
     const logEntry = {
-      timestamp: new Date().toISOString(),
       ...event,
+      timestamp: new Date().toISOString(),
     };
 
     try {

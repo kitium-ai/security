@@ -71,7 +71,13 @@ export interface AuthorizationPolicy {
 }
 
 export interface SecurityEvent {
-  type: 'authentication_success' | 'authentication_failure' | 'authorization_failure' | 'data_access' | 'config_change' | 'security_violation';
+  type:
+    | 'authentication_success'
+    | 'authentication_failure'
+    | 'authorization_failure'
+    | 'data_access'
+    | 'config_change'
+    | 'security_violation';
   severity: 'low' | 'medium' | 'high' | 'critical';
   userId?: string;
   organizationId: string;

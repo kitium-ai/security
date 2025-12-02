@@ -8,7 +8,6 @@ import path from 'path';
 import { AuditLog, SecurityEvent } from '../types';
 import { configManager } from '../config';
 import { logger } from '../utils/logger';
-import { encryptionService } from '../utils/encryption';
 
 export class AuditLogService {
   private logFile: string;
@@ -34,16 +33,12 @@ export class AuditLogService {
    */
   public logSecurityEvent(event: SecurityEvent): void {
     const logEntry = {
-      timestamp: new Date().toISOString(),
       ...event,
+      timestamp: event.timestamp,
     };
 
     try {
-      fs.appendFileSync(
-        this.logFile,
-        JSON.stringify(logEntry) + '\n',
-        'utf-8'
-      );
+      fs.appendFileSync(this.logFile, JSON.stringify(logEntry) + '\n', 'utf-8');
 
       logger.info(`Security event logged: ${event.type}`, {
         organizationId: event.organizationId,
@@ -67,11 +62,7 @@ export class AuditLogService {
     };
 
     try {
-      fs.appendFileSync(
-        this.logFile,
-        JSON.stringify(logEntry) + '\n',
-        'utf-8'
-      );
+      fs.appendFileSync(this.logFile, JSON.stringify(logEntry) + '\n', 'utf-8');
 
       logger.debug('Request logged', {
         requestId: auditLog.requestId,
@@ -197,9 +188,9 @@ export class AuditLogService {
       const data = fs.readFileSync(this.logFile, 'utf-8');
       const logs = data
         .split('\n')
-        .filter(line => line.trim())
-        .map(line => JSON.parse(line))
-        .filter(log => log.organizationId === organizationId)
+        .filter((line) => line.trim())
+        .map((line) => JSON.parse(line))
+        .filter((log) => log.organizationId === organizationId)
         .slice(-limit);
 
       return logs;
@@ -214,10 +205,7 @@ export class AuditLogService {
   /**
    * Export audit logs
    */
-  public exportLogsForOrganization(
-    organizationId: string,
-    format: 'json' | 'csv'
-  ): string {
+  public exportLogsForOrganization(organizationId: string, format: 'json' | 'csv'): string {
     const logs = this.getLogsForOrganization(organizationId, 1000);
 
     if (format === 'json') {
@@ -226,7 +214,7 @@ export class AuditLogService {
 
     // CSV format
     const headers = ['timestamp', 'type', 'severity', 'userId', 'details'];
-    const rows = logs.map(log => [
+    const rows = logs.map((log) => [
       log.timestamp,
       log.type,
       log.severity,
@@ -236,7 +224,7 @@ export class AuditLogService {
 
     const csv = [
       headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(',')),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
     ].join('\n');
 
     return csv;

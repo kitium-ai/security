@@ -7,7 +7,6 @@ import { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { v4 as uuidv4 } from 'uuid';
 import Joi from 'joi';
 
 import { configManager } from '../config';
@@ -16,11 +15,7 @@ import { authorizationService } from '../services/authorization';
 import { auditLogService } from '../services/auditLog';
 import { encryptionService } from '../utils/encryption';
 import { logger } from '../utils/logger';
-import {
-  SecurityContext,
-  AuthTokenPayload,
-  ValidationSchema,
-} from '../types';
+import { SecurityContext, AuthTokenPayload, ValidationSchema } from '../types';
 
 /**
  * Extend Express Request with security context
@@ -44,7 +39,7 @@ export class SecurityMiddlewareFactory {
     return (req: Request, res: Response, next: NextFunction) => {
       req.securityContext = {
         requestId: auditLogService.generateRequestId(),
-        organizationId: req.headers['x-organization-id'] as string || 'default',
+        organizationId: (req.headers['x-organization-id'] as string) || 'default',
         permissions: [],
         timestamp: Date.now(),
         ipAddress: req.ip || 'unknown',
@@ -88,12 +83,7 @@ export class SecurityMiddlewareFactory {
       origin: this.config.corsOrigins,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: [
-        'Content-Type',
-        'Authorization',
-        'X-Organization-ID',
-        'X-Request-ID',
-      ],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Organization-ID', 'X-Request-ID'],
       maxAge: 86400,
     });
   }
@@ -110,21 +100,15 @@ export class SecurityMiddlewareFactory {
       windowMs: this.config.rateLimitWindowMs,
       max: this.config.rateLimitMaxRequests,
       keyGenerator: (req: Request) => {
-        return (req.securityContext?.organizationId || 'default') +
-               ':' +
-               (req.ip || 'unknown');
+        return (req.securityContext?.organizationId || 'default') + ':' + (req.ip || 'unknown');
       },
       handler: (req: Request, res: Response) => {
         const context = req.securityContext;
         if (context) {
-          auditLogService.logSecurityViolation(
-            context.organizationId,
-            'rate_limit_exceeded',
-            {
-              ipAddress: context.ipAddress,
-              requestId: context.requestId,
-            }
-          );
+          auditLogService.logSecurityViolation(context.organizationId, 'rate_limit_exceeded', {
+            ipAddress: context.ipAddress,
+            requestId: context.requestId,
+          });
         }
 
         res.status(429).json({
@@ -192,14 +176,10 @@ export class SecurityMiddlewareFactory {
 
       // Verify organization match
       if (payload.organizationId !== context.organizationId) {
-        auditLogService.logSecurityViolation(
-          context.organizationId,
-          'organization_mismatch',
-          {
-            tokenOrgId: payload.organizationId,
-            headerOrgId: context.organizationId,
-          }
-        );
+        auditLogService.logSecurityViolation(context.organizationId, 'organization_mismatch', {
+          tokenOrgId: payload.organizationId,
+          headerOrgId: context.organizationId,
+        });
 
         return res.status(403).json({
           error: 'Organization mismatch',
@@ -227,10 +207,11 @@ export class SecurityMiddlewareFactory {
    * Create authorization middleware
    */
   public createAuthorizationMiddleware(requiredPermissions: string[]) {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return (req: Request, res: Response, next: NextFunction): void => {
       const context = req.securityContext;
       if (!context || !req.tokenPayload) {
-        return res.status(500).json({ error: 'Security context not initialized' });
+        res.status(500).json({ error: 'Security context not initialized' });
+        return;
       }
 
       if (!authorizationService.hasAllPermissions(req.tokenPayload, requiredPermissions)) {
@@ -240,11 +221,12 @@ export class SecurityMiddlewareFactory {
           requiredPermissions.join(', ')
         );
 
-        return res.status(403).json({
+        res.status(403).json({
           error: 'Insufficient permissions',
           requiredPermissions,
           requestId: context.requestId,
         });
+        return;
       }
 
       next();
@@ -255,10 +237,11 @@ export class SecurityMiddlewareFactory {
    * Create request validation middleware
    */
   public createValidationMiddleware(schema: ValidationSchema) {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return (req: Request, res: Response, next: NextFunction): void => {
       const context = req.securityContext;
       if (!context) {
-        return res.status(500).json({ error: 'Security context not initialized' });
+        res.status(500).json({ error: 'Security context not initialized' });
+        return;
       }
 
       // Build Joi schema from validation schema
@@ -269,14 +252,15 @@ export class SecurityMiddlewareFactory {
       if (error) {
         logger.warn('Request validation failed', {
           requestId: context.requestId,
-          error: error.message,
+          error: error.details,
         });
 
-        return res.status(400).json({
+        res.status(400).json({
           error: 'Validation failed',
           details: error.details,
           requestId: context.requestId,
         });
+        return;
       }
 
       req.body = value;
@@ -288,13 +272,12 @@ export class SecurityMiddlewareFactory {
    * Create audit logging middleware
    */
   public createAuditLoggingMiddleware() {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return (req: Request, res: Response, next: NextFunction): void => {
       const context = req.securityContext;
       if (!context) {
-        return next();
+        next();
+        return;
       }
-
-      const startTime = Date.now();
 
       res.on('finish', () => {
         auditLogService.logRequest({
@@ -307,6 +290,7 @@ export class SecurityMiddlewareFactory {
           path: req.path,
           statusCode: res.statusCode,
           ipAddress: context.ipAddress,
+          timestamp: Date.now(),
         });
       });
 
@@ -318,14 +302,15 @@ export class SecurityMiddlewareFactory {
    * Create encryption middleware for sensitive responses
    */
   public createEncryptionMiddleware(sensitiveFields: string[] = []) {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return (_req: Request, res: Response, next: NextFunction): void => {
       if (!this.config.enableEncryption || sensitiveFields.length === 0) {
-        return next();
+        next();
+        return;
       }
 
       const originalJson = res.json.bind(res);
 
-      res.json = function(data: any) {
+      res.json = function (data: any) {
         try {
           const encrypted = encryptionService.encrypt(JSON.stringify(data));
           return originalJson({
@@ -351,7 +336,7 @@ export class SecurityMiddlewareFactory {
       if (!req.securityContext) {
         req.securityContext = {
           requestId: auditLogService.generateRequestId(),
-          organizationId: req.headers['x-organization-id'] as string || 'default',
+          organizationId: (req.headers['x-organization-id'] as string) || 'default',
           permissions: [],
           timestamp: Date.now(),
           ipAddress: req.ip || 'unknown',
@@ -373,9 +358,15 @@ export class SecurityMiddlewareFactory {
 
       if (rules.type === 'string') {
         joiField = Joi.string();
-        if (rules.minLength) joiField = (joiField as Joi.StringSchema).min(rules.minLength);
-        if (rules.maxLength) joiField = (joiField as Joi.StringSchema).max(rules.maxLength);
-        if (rules.pattern) joiField = (joiField as Joi.StringSchema).pattern(new RegExp(rules.pattern));
+        if (rules.minLength) {
+          joiField = (joiField as Joi.StringSchema).min(rules.minLength);
+        }
+        if (rules.maxLength) {
+          joiField = (joiField as Joi.StringSchema).max(rules.maxLength);
+        }
+        if (rules.pattern) {
+          joiField = (joiField as Joi.StringSchema).pattern(new RegExp(rules.pattern));
+        }
       } else if (rules.type === 'number') {
         joiField = Joi.number();
       } else if (rules.type === 'boolean') {

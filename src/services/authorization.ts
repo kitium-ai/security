@@ -31,28 +31,17 @@ export class AuthorizationService {
 
     this.registerPolicy({
       role: 'manager',
-      permissions: [
-        'read:*',
-        'write:own_data',
-        'manage:team',
-        'view:audit-logs',
-      ],
+      permissions: ['read:*', 'write:own_data', 'manage:team', 'view:audit-logs'],
     });
 
     this.registerPolicy({
       role: 'user',
-      permissions: [
-        'read:own_data',
-        'write:own_data',
-        'view:own_profile',
-      ],
+      permissions: ['read:own_data', 'write:own_data', 'view:own_profile'],
     });
 
     this.registerPolicy({
       role: 'guest',
-      permissions: [
-        'read:public_data',
-      ],
+      permissions: ['read:public_data'],
     });
   }
 
@@ -67,10 +56,7 @@ export class AuthorizationService {
   /**
    * Check if user has permission
    */
-  public hasPermission(
-    tokenPayload: AuthTokenPayload,
-    requiredPermission: string
-  ): boolean {
+  public hasPermission(tokenPayload: AuthTokenPayload, requiredPermission: string): boolean {
     // Admin always has access
     if (tokenPayload.role === 'admin') {
       return true;
@@ -82,7 +68,7 @@ export class AuthorizationService {
     }
 
     // Check for wildcard permissions (e.g., 'read:*')
-    const [action, resource] = requiredPermission.split(':');
+    const action = requiredPermission.split(':')[0];
     const wildcardPermission = `${action}:*`;
 
     if (tokenPayload.permissions.includes(wildcardPermission)) {
@@ -101,25 +87,15 @@ export class AuthorizationService {
   /**
    * Check if user has any of the required permissions
    */
-  public hasAnyPermission(
-    tokenPayload: AuthTokenPayload,
-    requiredPermissions: string[]
-  ): boolean {
-    return requiredPermissions.some(permission =>
-      this.hasPermission(tokenPayload, permission)
-    );
+  public hasAnyPermission(tokenPayload: AuthTokenPayload, requiredPermissions: string[]): boolean {
+    return requiredPermissions.some((permission) => this.hasPermission(tokenPayload, permission));
   }
 
   /**
    * Check if user has all required permissions
    */
-  public hasAllPermissions(
-    tokenPayload: AuthTokenPayload,
-    requiredPermissions: string[]
-  ): boolean {
-    return requiredPermissions.every(permission =>
-      this.hasPermission(tokenPayload, permission)
-    );
+  public hasAllPermissions(tokenPayload: AuthTokenPayload, requiredPermissions: string[]): boolean {
+    return requiredPermissions.every((permission) => this.hasPermission(tokenPayload, permission));
   }
 
   /**
@@ -142,10 +118,10 @@ export class AuthorizationService {
    */
   public canAccessResource(
     tokenPayload: AuthTokenPayload,
-    resourceId: string,
+    _resourceId: string,
     action: string
   ): boolean {
-    const permission = `${action}:${resourceId}`;
+    const permission = `${action}:${_resourceId}`;
 
     // Check exact permission
     if (tokenPayload.permissions.includes(permission)) {

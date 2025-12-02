@@ -4,8 +4,9 @@
 
 import jwt from 'jsonwebtoken';
 import bcryptjs from 'bcryptjs';
+import { KitiumError } from '@kitiumai/error';
 import { configManager } from '../config';
-import { AuthTokenPayload, SecurityEvent } from '../types';
+import { AuthTokenPayload } from '../types';
 import { logger } from '../utils/logger';
 
 export class AuthenticationService {
@@ -19,7 +20,7 @@ export class AuthenticationService {
     const token = jwt.sign(payload, this.config.jwtSecret, {
       expiresIn: this.config.jwtExpiration,
       algorithm: 'HS256',
-    });
+    } as jwt.SignOptions);
 
     logger.info('Token generated', {
       userId: payload.userId,
@@ -56,7 +57,15 @@ export class AuthenticationService {
       return await bcryptjs.hash(password, salt);
     } catch (error) {
       logger.error('Password hashing failed', { error: (error as Error).message });
-      throw new Error('Failed to hash password');
+      throw new KitiumError({
+        code: 'security/hash_failed',
+        message: 'Failed to hash password',
+        severity: 'error',
+        kind: 'internal',
+        retryable: false,
+        source: '@kitiumai/security',
+        cause: error,
+      });
     }
   }
 

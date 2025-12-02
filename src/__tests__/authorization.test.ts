@@ -2,6 +2,7 @@
  * Authorization Service Tests
  */
 
+import { describe, it, expect } from 'vitest';
 import { authorizationService } from '../services/authorization';
 import { AuthTokenPayload } from '../types';
 

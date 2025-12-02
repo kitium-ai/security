@@ -20,21 +20,21 @@ export class ConfigManager {
   }
 
   private loadConfig(): SecurityConfig {
-    const env = process.env.NODE_ENV || 'development';
+    const env = process.env['NODE_ENV'] || 'development';
 
     return {
-      environment: (env as any) || 'development',
-      enableEncryption: process.env.ENABLE_ENCRYPTION !== 'false',
-      enableAuditLogging: process.env.ENABLE_AUDIT_LOGGING !== 'false',
-      enableRateLimiting: process.env.ENABLE_RATE_LIMITING !== 'false',
-      jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
-      jwtExpiration: process.env.JWT_EXPIRATION || '24h',
-      encryptionKey: process.env.ENCRYPTION_KEY || 'your-encryption-key-32-bytes-long!',
-      corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:3000').split(','),
-      rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes
-      rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
-      auditLogPath: process.env.AUDIT_LOG_PATH || './logs/audit.log',
-      logLevel: (process.env.LOG_LEVEL as any) || 'info',
+      environment: env as SecurityConfig['environment'],
+      enableEncryption: process.env['ENABLE_ENCRYPTION'] !== 'false',
+      enableAuditLogging: process.env['ENABLE_AUDIT_LOGGING'] !== 'false',
+      enableRateLimiting: process.env['ENABLE_RATE_LIMITING'] !== 'false',
+      jwtSecret: process.env['JWT_SECRET'] || 'your-secret-key-change-in-production',
+      jwtExpiration: process.env['JWT_EXPIRATION'] || '24h',
+      encryptionKey: process.env['ENCRYPTION_KEY'] || 'your-encryption-key-32-bytes-long!',
+      corsOrigins: (process.env['CORS_ORIGINS'] || 'http://localhost:3000').split(','),
+      rateLimitWindowMs: parseInt(process.env['RATE_LIMIT_WINDOW_MS'] || '900000', 10), // 15 minutes
+      rateLimitMaxRequests: parseInt(process.env['RATE_LIMIT_MAX_REQUESTS'] || '100', 10),
+      auditLogPath: process.env['AUDIT_LOG_PATH'] || './logs/audit.log',
+      logLevel: (process.env['LOG_LEVEL'] as SecurityConfig['logLevel']) || 'info',
     };
   }
 

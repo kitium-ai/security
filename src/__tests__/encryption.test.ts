@@ -2,6 +2,7 @@
  * Encryption Service Tests
  */
 
+import { describe, it, expect } from 'vitest';
 import { encryptionService } from '../utils/encryption';
 
 describe('EncryptionService', () => {

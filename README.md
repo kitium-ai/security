@@ -2,6 +2,8 @@
 
 A production-ready, enterprise-grade security middleware providing consistent secure environments across organizations.
 
+> Looking for an enterprise gap analysis and roadmap? See [Enterprise Readiness Evaluation](docs/ENTERPRISE_READINESS.md) for a comparison against big-tech expectations and recommended improvements.
+
 ## Features
 
 ### 🔐 Core Security Features
@@ -15,10 +17,14 @@ A production-ready, enterprise-grade security middleware providing consistent se
 ### 🏢 Enterprise Features
 - **Multi-Tenant Support** - Organize-scoped security context
 - **Role-Based Access Control** - Flexible permission system with wildcards
+- **Identity Federation** - OIDC/SAML adapters plus SCIM sync powered by `@kitium-ai/auth`
+- **Policy-as-Code** - OPA/Cedar-inspired PDP middleware with tenant bundles
 - **Security Events** - Detailed security event tracking
-- **Audit Exports** - Export audit logs in JSON/CSV format
-- **Configuration Management** - Centralized security configuration
+- **Audit Exports** - Export audit logs in JSON/CSV format with response signing and retention checks
+- **Configuration Management** - Centralized security configuration with secret manager abstractions
 - **Environment-Aware** - Development, staging, and production modes
+- **Observability** - OpenTelemetry spans, metrics, and liveness/readiness probes
+- **Network Hardening** - mTLS, IP allow/deny lists, payload size guard, file scan hooks
 
 ## Installation
 
@@ -39,55 +45,60 @@ Edit `.env` and set your security keys:
 ```
 JWT_SECRET=your-super-secret-key-minimum-32-characters-long!
 ENCRYPTION_KEY=your-encryption-key-minimum-32-characters-long!
+RESPONSE_SIGNING_KEY=rotate-me
+KMS_KEY_ID=alias/security
 ```
 
-### 2. Initialize Security Middleware
+### 2. Initialize the Enterprise Suite with Secure Defaults
 
 ```typescript
-import { initializeSecurityMiddleware } from '@enterprise/security-middleware';
 import express from 'express';
+import { createSecuritySuite } from '@enterprise/security-middleware';
 
 const app = express();
 app.use(express.json());
 
-async function setupSecurity() {
-  const security = await initializeSecurityMiddleware();
-
-  // Apply global middleware
-  app.use(security.factory.createRequestIdMiddleware());
-  app.use(security.factory.createHelmetMiddleware());
-  app.use(security.factory.createCorsMiddleware());
-  app.use(security.factory.createRateLimitMiddleware());
-  app.use(security.factory.createAuditLoggingMiddleware());
-
-  return security;
-}
-
-setupSecurity().then(() => {
-  app.listen(3000);
+const suite = createSecuritySuite({
+  presets: ['enterprise'],
+  identityProviders: [
+    {
+      mode: 'oidc',
+      issuer: 'https://login.example.com',
+      clientId: process.env.CLIENT_ID!,
+      clientSecret: process.env.CLIENT_SECRET,
+      scopes: ['openid', 'profile', 'email'],
+    },
+  ],
+  policyBackend: 'opa',
 });
+
+suite.apply(app);
+suite.requirePolicy('read', 'health');
+
+// Apply all guardrails (context, mTLS, rate limits, CORS, helmet, audit, tracing, metrics)
+suite.middleware && suite; // just ensures tree-shaking keeps middleware exports
 ```
 
-### 3. Protect Routes
+### 3. Protect Routes with Policies, Step-Up, and Consent Scopes
 
 ```typescript
 import { securityMiddlewareFactory } from '@enterprise/security-middleware';
 
-// Protect with authentication
-app.get('/api/profile',
+// Protect with authentication and step-up MFA for admin routes
+app.post(
+  '/api/admin/users',
   securityMiddlewareFactory.createAuthenticationMiddleware(),
-  (req, res) => {
-    res.json({ user: req.tokenPayload });
-  }
+  suite.requireStepUp('high'),
+  suite.requirePolicy('manage', 'user'),
+  (req, res) => res.json({ success: true })
 );
 
-// Protect with specific permissions
-app.post('/api/admin/users',
+// Require explicit consent scopes (e.g., GDPR/marketing)
+app.get(
+  '/api/profile',
   securityMiddlewareFactory.createAuthenticationMiddleware(),
-  securityMiddlewareFactory.createAuthorizationMiddleware(['manage:users']),
-  (req, res) => {
-    res.json({ success: true });
-  }
+  suite.requireConsent(['profile.read']),
+  (req, res) => res.json({ user: req.tokenPayload })
 );
 ```
 
@@ -120,6 +131,48 @@ app.post('/api/admin/users',
 - `logDataAccess(...)` - Log data access
 - `logAuthenticationAttempt(...)` - Log auth attempt
 - `getLogsForOrganization(orgId)` - Retrieve logs
+
+#### IdentityFederationService
+- `createOidcMiddleware(provider)` - Plug-and-play OIDC login using `@kitium-ai/auth`
+- `createSamlMiddleware(provider)` - Enterprise SAML adapter
+- `handleScimSync(event)` - SCIM provisioning callback handler
+- `requireConsentScopes(scopes)` - Enforce fine-grained consent gates
+- `requireStepUp(level)` - Require MFA/strong auth for sensitive routes
+
+#### PolicyEngineService
+- `middleware(action, resource)` - Declarative PDP middleware (OPA/Cedar style)
+- `loadBundle(tenant, bundle)` - Load per-tenant policies and obligations
+- `setBackend(backend)` - Choose `opa`, `cedar`, or `local` evaluation
+
+#### ObservabilityService
+- `tracingMiddleware()` - Emit OpenTelemetry spans per request
+- `metricsMiddleware()` - Emit structured metrics logs
+- `readinessMiddleware()` / `livenessMiddleware()` - Health endpoints
+
+#### NetworkProtectionService
+- `requireMutualTLS()` - Enforce client certificates
+- `enforceIpPolicy()` - Allow/deny lists
+- `bodySizeGuard()` - Reject oversized payloads
+- `signResponse()` - HMAC sign responses for integrity
+- `fileScanMiddleware(scanner)` - Hook external malware scanners
+
+#### KeyManagementService
+- `rotateJwks()` - Automatic JWKS rotation
+- `envelopeEncrypt(buffer)` / `envelopeDecrypt(payload)` - KMS-style envelope encryption
+- `revokeToken(jti)` / `isRevoked(jti)` - Replay protection
+
+#### SecretProviderService
+- `getSecret(key)` - Resolve secrets from configured provider namespace
+- `rotateSecret(key, value)` - Rotate cached secrets programmatically
+
+#### DataGovernanceService
+- `classify(data)` - Tag PII fields and mask values
+- `enforceRetention(timestamp)` - TTL enforcement for audit retention
+
+#### CLI Utilities
+- `generateConfigTemplate(destination?)` - Emit hardened `.env` template
+- `rotateKeys()` - Rotate JWKS keys for signing/verification
+- `validateEnvironment()` - Config validation with actionable errors
 
 ### Middleware
 
@@ -186,11 +239,28 @@ app.post('/register', factory.createValidationMiddleware(schema));
 | `JWT_SECRET` | N/A | JWT signing secret (min 32 chars) |
 | `JWT_EXPIRATION` | 24h | Token expiration time |
 | `ENCRYPTION_KEY` | N/A | Encryption key (min 32 chars) |
+| `RESPONSE_SIGNING_KEY` | local-response-signing-key | HMAC key for response signing |
+| `KMS_KEY_ID` | local-kms-key | KMS/HSM key alias for envelope encryption |
 | `CORS_ORIGINS` | http://localhost:3000 | Comma-separated CORS origins |
 | `RATE_LIMIT_WINDOW_MS` | 900000 | Rate limit window (ms) |
 | `RATE_LIMIT_MAX_REQUESTS` | 100 | Max requests per window |
 | `AUDIT_LOG_PATH` | ./logs/audit.log | Audit log file path |
 | `LOG_LEVEL` | info | Logging level |
+| `TRACING_ENABLED` | true | Emit OpenTelemetry spans |
+| `METRICS_ENABLED` | true | Emit structured metrics logs |
+| `READINESS_PATH` | /ready | Readiness endpoint path |
+| `LIVENESS_PATH` | /live | Liveness endpoint path |
+| `JWKS_ROTATION_INTERVAL` | 60 | Minutes between JWKS rotations |
+| `TOKEN_REVOCATION_TTL` | 60 | Minutes to retain revoked token IDs |
+| `SECRET_MANAGER` | local | Secret manager provider (vault/aws/gcp/azure/local) |
+| `SECRETS_NAMESPACE` | security-middleware | Namespace for secret keys |
+| `POLICY_BACKEND` | local | Policy backend (`opa`, `cedar`, `local`) |
+| `MTLS_REQUIRED` | false | Require client TLS certificates |
+| `ALLOWED_IP_CIDRS` | (blank) | Allowlist for client IPs |
+| `DENIED_IP_CIDRS` | (blank) | Denylist for client IPs |
+| `MAX_REQUEST_BODY_BYTES` | 1048576 | Max body size before rejection |
+| `PII_FIELDS` | (blank) | Comma-separated PII fields for masking |
+| `AUDIT_RETENTION_DAYS` | 30 | Retention period for audit events |
 
 ### Programmatic Configuration
 
@@ -317,6 +387,26 @@ app.get('/api/data/:id',
 
     res.json(data);
   }
+);
+```
+
+### One-Call Secure Defaults
+
+```typescript
+import express from 'express';
+import { applySecureDefaults, securityMiddlewareFactory } from '@enterprise/security-middleware';
+
+const app = express();
+applySecureDefaults(app, {
+  presets: ['enterprise'],
+  identityProviders: [{ mode: 'saml', issuer: 'https://idp.example.com', samlEntryPoint: 'https://idp.example.com/saml' }],
+});
+
+app.get(
+  '/sensitive',
+  securityMiddlewareFactory.createAuthenticationMiddleware(),
+  securityMiddlewareFactory.createAuthorizationMiddleware(['read:sensitive']),
+  (req, res) => res.json({ data: 'secret' })
 );
 ```
 

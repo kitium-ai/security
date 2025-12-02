@@ -18,6 +18,7 @@ export { InputSanitizer, inputSanitizer } from './utils/sanitize';
 
 // Middleware
 export { SecurityMiddlewareFactory, securityMiddlewareFactory } from './middleware/factory';
+export { applySecureDefaults, createSecuritySuite } from './middleware/secureDefaults';
 
 // Server
 export { TLSConfigurationService, tlsConfigurationService } from './server/https';
@@ -32,6 +33,16 @@ export {
   sqlInjectionExamples,
   databaseValidation,
 } from './database/sqlInjectionPrevention';
+
+// Advanced services
+export { identityFederationService, IdentityFederationService } from './services/identityFederation';
+export { policyEngineService, PolicyEngineService } from './services/policyEngine';
+export { observabilityService, ObservabilityService } from './services/observability';
+export { networkProtectionService, NetworkProtectionService } from './services/networkProtection';
+export { secretProviderService, SecretProviderService } from './services/secretProvider';
+export { keyManagementService, KeyManagementService } from './services/keyManagement';
+export { dataGovernanceService, DataGovernanceService } from './services/dataGovernance';
+export { generateConfigTemplate, rotateKeys, validateEnvironment } from './utils/cli';
 
 // Types
 export type {

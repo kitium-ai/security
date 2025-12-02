@@ -35,6 +35,29 @@ export class ConfigManager {
       rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
       auditLogPath: process.env.AUDIT_LOG_PATH || './logs/audit.log',
       logLevel: (process.env.LOG_LEVEL as any) || 'info',
+      tracingEnabled: process.env.TRACING_ENABLED !== 'false',
+      metricsEnabled: process.env.METRICS_ENABLED !== 'false',
+      readinessPath: process.env.READINESS_PATH || '/ready',
+      livenessPath: process.env.LIVENESS_PATH || '/live',
+      featureFlags: {
+        strictCors: process.env.FEATURE_FLAG_STRICT_CORS !== 'false',
+        burstRateLimit: process.env.FEATURE_FLAG_BURST_RATE_LIMIT === 'true',
+      },
+      jwksRotationIntervalMinutes: parseInt(process.env.JWKS_ROTATION_INTERVAL || '60', 10),
+      tokenRevocationTtlMinutes: parseInt(process.env.TOKEN_REVOCATION_TTL || '60', 10),
+      kmsProvider: (process.env.KMS_PROVIDER as any) || 'local',
+      kmsKeyId: process.env.KMS_KEY_ID || 'local-kms-key',
+      secretManager: (process.env.SECRET_MANAGER as any) || 'local',
+      secretsNamespace: process.env.SECRETS_NAMESPACE || 'security-middleware',
+      policyBackend: (process.env.POLICY_BACKEND as any) || 'local',
+      policyBundlePath: process.env.POLICY_BUNDLE_PATH,
+      mTLSRequired: process.env.MTLS_REQUIRED === 'true',
+      allowedIpCidrs: (process.env.ALLOWED_IP_CIDRS || '').split(',').filter(Boolean),
+      deniedIpCidrs: (process.env.DENIED_IP_CIDRS || '').split(',').filter(Boolean),
+      maxRequestBodyBytes: parseInt(process.env.MAX_REQUEST_BODY_BYTES || '1048576', 10),
+      responseSigningKey: process.env.RESPONSE_SIGNING_KEY || 'local-response-signing-key',
+      piiFields: (process.env.PII_FIELDS || '').split(',').filter(Boolean),
+      auditRetentionDays: parseInt(process.env.AUDIT_RETENTION_DAYS || '30', 10),
     };
   }
 
@@ -79,6 +102,14 @@ export class ConfigManager {
 
     if (this.config.rateLimitMaxRequests <= 0) {
       errors.push('Rate limit max requests must be positive');
+    }
+
+    if (!this.config.responseSigningKey) {
+      errors.push('RESPONSE_SIGNING_KEY is required for response signing');
+    }
+
+    if (!this.config.kmsKeyId) {
+      errors.push('KMS_KEY_ID must be defined to support envelope encryption');
     }
 
     return {

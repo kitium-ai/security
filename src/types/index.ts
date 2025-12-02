@@ -11,6 +11,8 @@ export interface SecurityContext {
   timestamp: number;
   ipAddress: string;
   userAgent: string;
+  assuranceLevel?: 'low' | 'medium' | 'high';
+  consentScopes?: string[];
 }
 
 export interface SecurityConfig {
@@ -26,6 +28,26 @@ export interface SecurityConfig {
   rateLimitMaxRequests: number;
   auditLogPath: string;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
+  tracingEnabled: boolean;
+  metricsEnabled: boolean;
+  readinessPath: string;
+  livenessPath: string;
+  featureFlags: Record<string, boolean>;
+  jwksRotationIntervalMinutes: number;
+  tokenRevocationTtlMinutes: number;
+  kmsProvider?: 'aws' | 'gcp' | 'azure' | 'local';
+  kmsKeyId?: string;
+  secretManager?: 'vault' | 'aws' | 'gcp' | 'azure' | 'local';
+  secretsNamespace?: string;
+  policyBackend?: 'opa' | 'cedar' | 'local';
+  policyBundlePath?: string;
+  mTLSRequired?: boolean;
+  allowedIpCidrs?: string[];
+  deniedIpCidrs?: string[];
+  maxRequestBodyBytes?: number;
+  responseSigningKey?: string;
+  piiFields?: string[];
+  auditRetentionDays?: number;
 }
 
 export interface AuthTokenPayload {
@@ -88,4 +110,51 @@ export interface ValidationSchema {
     pattern?: string;
     enum?: any[];
   };
+}
+
+export interface IdentityProviderConfig {
+  mode: 'oidc' | 'saml';
+  issuer: string;
+  clientId?: string;
+  clientSecret?: string;
+  samlEntryPoint?: string;
+  samlCallbackUrl?: string;
+  scopes?: string[];
+  autoProvision?: boolean;
+}
+
+export interface ScimEvent {
+  type: 'user.created' | 'user.updated' | 'user.deleted' | 'group.updated';
+  payload: Record<string, any>;
+}
+
+export interface PolicyDecisionContext {
+  subject: string;
+  action: string;
+  resource: string;
+  tenant: string;
+  attributes?: Record<string, any>;
+}
+
+export interface PolicyDecision {
+  allow: boolean;
+  reason?: string;
+  obligations?: Record<string, any>;
+  cacheHit?: boolean;
+}
+
+export interface DataClassification {
+  field: string;
+  tags: string[];
+  maskedValue?: string;
+}
+
+export interface SecuritySuiteOptions {
+  presets?: ('enterprise' | 'strict' | 'dev')[];
+  identityProviders?: IdentityProviderConfig[];
+  policyBackend?: 'opa' | 'cedar' | 'local';
+  enableDataGovernance?: boolean;
+  tracing?: boolean;
+  metrics?: boolean;
+  secretsProvider?: SecurityConfig['secretManager'];
 }

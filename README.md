@@ -5,6 +5,7 @@ A production-ready, enterprise-grade security middleware providing consistent se
 ## Features
 
 ### 🔐 Core Security Features
+
 - **Authentication & Authorization** - JWT-based authentication with role-based access control (RBAC)
 - **Encryption & Data Protection** - AES-256-GCM encryption for sensitive data
 - **Audit Logging** - Comprehensive audit trail for compliance and security monitoring
@@ -13,6 +14,7 @@ A production-ready, enterprise-grade security middleware providing consistent se
 - **Request Validation** - Input validation using Joi schema
 
 ### 🏢 Enterprise Features
+
 - **Multi-Tenant Support** - Organize-scoped security context
 - **Role-Based Access Control** - Flexible permission system with wildcards
 - **Security Events** - Detailed security event tracking
@@ -74,15 +76,13 @@ setupSecurity().then(() => {
 import { securityMiddlewareFactory } from '@enterprise/security-middleware';
 
 // Protect with authentication
-app.get('/api/profile',
-  securityMiddlewareFactory.createAuthenticationMiddleware(),
-  (req, res) => {
-    res.json({ user: req.tokenPayload });
-  }
-);
+app.get('/api/profile', securityMiddlewareFactory.createAuthenticationMiddleware(), (req, res) => {
+  res.json({ user: req.tokenPayload });
+});
 
 // Protect with specific permissions
-app.post('/api/admin/users',
+app.post(
+  '/api/admin/users',
   securityMiddlewareFactory.createAuthenticationMiddleware(),
   securityMiddlewareFactory.createAuthorizationMiddleware(['manage:users']),
   (req, res) => {
@@ -96,6 +96,7 @@ app.post('/api/admin/users',
 ### Services
 
 #### AuthenticationService
+
 - `generateToken(payload)` - Generate JWT token
 - `verifyToken(token)` - Verify token validity
 - `hashPassword(password)` - Hash password securely
@@ -103,18 +104,21 @@ app.post('/api/admin/users',
 - `refreshToken(token)` - Refresh expired token
 
 #### AuthorizationService
+
 - `hasPermission(tokenPayload, permission)` - Check single permission
 - `hasAllPermissions(tokenPayload, permissions)` - Check all permissions
 - `canAccessByRole(role, requiredRoles)` - Check role access
 - `enforceMinimumRole(userRole, minimumRole)` - Enforce role hierarchy
 
 #### EncryptionService
+
 - `encrypt(data)` - Encrypt data with AES-256-GCM
 - `decrypt(encrypted, iv, authTag)` - Decrypt data
 - `hash(data)` - Hash data (SHA256)
 - `generateToken()` - Generate random token
 
 #### AuditLogService
+
 - `logSecurityEvent(event)` - Log security event
 - `logRequest(auditLog)` - Log HTTP request
 - `logDataAccess(...)` - Log data access
@@ -124,6 +128,7 @@ app.post('/api/admin/users',
 ### Middleware
 
 #### Request ID Middleware
+
 Adds unique request ID to each request for tracking.
 
 ```typescript
@@ -131,6 +136,7 @@ app.use(factory.createRequestIdMiddleware());
 ```
 
 #### Helmet Middleware
+
 Applies secure HTTP headers.
 
 ```typescript
@@ -138,6 +144,7 @@ app.use(factory.createHelmetMiddleware());
 ```
 
 #### CORS Middleware
+
 Configurable CORS policy.
 
 ```typescript
@@ -145,6 +152,7 @@ app.use(factory.createCorsMiddleware());
 ```
 
 #### Rate Limiting
+
 Per-organization rate limiting.
 
 ```typescript
@@ -152,6 +160,7 @@ app.use(factory.createRateLimitMiddleware());
 ```
 
 #### Authentication
+
 JWT-based authentication.
 
 ```typescript
@@ -159,6 +168,7 @@ app.use(factory.createAuthenticationMiddleware());
 ```
 
 #### Authorization
+
 Permission-based access control.
 
 ```typescript
@@ -166,6 +176,7 @@ app.use(factory.createAuthorizationMiddleware(['read:*', 'write:own_data']));
 ```
 
 #### Request Validation
+
 Input validation middleware.
 
 ```typescript
@@ -180,17 +191,17 @@ app.post('/register', factory.createValidationMiddleware(schema));
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NODE_ENV` | development | Environment (development/staging/production) |
-| `JWT_SECRET` | N/A | JWT signing secret (min 32 chars) |
-| `JWT_EXPIRATION` | 24h | Token expiration time |
-| `ENCRYPTION_KEY` | N/A | Encryption key (min 32 chars) |
-| `CORS_ORIGINS` | http://localhost:3000 | Comma-separated CORS origins |
-| `RATE_LIMIT_WINDOW_MS` | 900000 | Rate limit window (ms) |
-| `RATE_LIMIT_MAX_REQUESTS` | 100 | Max requests per window |
-| `AUDIT_LOG_PATH` | ./logs/audit.log | Audit log file path |
-| `LOG_LEVEL` | info | Logging level |
+| Variable                  | Default               | Description                                  |
+| ------------------------- | --------------------- | -------------------------------------------- |
+| `NODE_ENV`                | development           | Environment (development/staging/production) |
+| `JWT_SECRET`              | N/A                   | JWT signing secret (min 32 chars)            |
+| `JWT_EXPIRATION`          | 24h                   | Token expiration time                        |
+| `ENCRYPTION_KEY`          | N/A                   | Encryption key (min 32 chars)                |
+| `CORS_ORIGINS`            | http://localhost:3000 | Comma-separated CORS origins                 |
+| `RATE_LIMIT_WINDOW_MS`    | 900000                | Rate limit window (ms)                       |
+| `RATE_LIMIT_MAX_REQUESTS` | 100                   | Max requests per window                      |
+| `AUDIT_LOG_PATH`          | ./logs/audit.log      | Audit log file path                          |
+| `LOG_LEVEL`               | info                  | Logging level                                |
 
 ### Programmatic Configuration
 
@@ -215,19 +226,23 @@ if (!validation.valid) {
 ### Default Roles
 
 **Admin**
+
 - All permissions (`read:*`, `write:*`, `delete:*`)
 - Can manage users and security policies
 
 **Manager**
+
 - Read all data (`read:*`)
 - Write own data (`write:own_data`)
 - Manage team members
 
 **User**
+
 - Read own data (`read:own_data`)
 - Write own data (`write:own_data`)
 
 **Guest**
+
 - Read public data only
 
 ### Custom Permissions
@@ -239,11 +254,7 @@ import { authorizationService } from '@enterprise/security-middleware';
 
 authorizationService.registerPolicy({
   role: 'analyst',
-  permissions: [
-    'read:reports',
-    'read:analytics',
-    'write:own_reports',
-  ],
+  permissions: ['read:reports', 'read:analytics', 'write:own_reports'],
 });
 ```
 
@@ -300,24 +311,21 @@ app.post('/auth/login', async (req, res) => {
 ### Protected Data Access
 
 ```typescript
-app.get('/api/data/:id',
-  factory.createAuthenticationMiddleware(),
-  (req, res) => {
-    const context = req.securityContext;
-    const payload = req.tokenPayload;
+app.get('/api/data/:id', factory.createAuthenticationMiddleware(), (req, res) => {
+  const context = req.securityContext;
+  const payload = req.tokenPayload;
 
-    // Log data access
-    auditLogService.logDataAccess(
-      payload.userId,
-      context.organizationId,
-      req.params.id,
-      'read',
-      encryptionService.hash(JSON.stringify(data))
-    );
+  // Log data access
+  auditLogService.logDataAccess(
+    payload.userId,
+    context.organizationId,
+    req.params.id,
+    'read',
+    encryptionService.hash(JSON.stringify(data))
+  );
 
-    res.json(data);
-  }
-);
+  res.json(data);
+});
 ```
 
 ## Testing
@@ -360,9 +368,11 @@ import AWS from 'aws-sdk';
 const secretsManager = new AWS.SecretsManager();
 
 async function getSecrets() {
-  const secret = await secretsManager.getSecretValue({
-    SecretId: 'enterprise-security-middleware'
-  }).promise();
+  const secret = await secretsManager
+    .getSecretValue({
+      SecretId: 'enterprise-security-middleware',
+    })
+    .promise();
 
   return JSON.parse(secret.SecretString);
 }
@@ -388,15 +398,19 @@ async function getSecrets() {
 ## Troubleshooting
 
 ### Invalid Token
+
 Ensure JWT_SECRET is properly configured and hasn't changed.
 
 ### Rate Limiting Issues
+
 Check RATE_LIMIT_WINDOW_MS and RATE_LIMIT_MAX_REQUESTS settings.
 
 ### Encryption Errors
+
 Verify ENCRYPTION_KEY is at least 32 characters long.
 
 ### Missing Logs
+
 Check AUDIT_LOG_PATH permissions and disk space.
 
 ## Contributing

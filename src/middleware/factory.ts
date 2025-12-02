@@ -13,6 +13,7 @@ import { configManager } from '../config';
 import { authenticationService } from '../services/authentication';
 import { authorizationService } from '../services/authorization';
 import { auditLogService } from '../services/auditLog';
+import { csrfProtectionService } from '../services/csrf';
 import { encryptionService } from '../utils/encryption';
 import { logger } from '../utils/logger';
 import { SecurityContext, AuthTokenPayload, ValidationSchema } from '../types';
@@ -208,8 +209,11 @@ export class SecurityMiddlewareFactory {
    */
   public createAuthorizationMiddleware(requiredPermissions: string[]) {
     return (req: Request, res: Response, next: NextFunction): void => {
+    return (req: Request, res: Response, next: NextFunction): void => {
       const context = req.securityContext;
       if (!context || !req.tokenPayload) {
+        res.status(500).json({ error: 'Security context not initialized' });
+        return;
         res.status(500).json({ error: 'Security context not initialized' });
         return;
       }
@@ -222,10 +226,12 @@ export class SecurityMiddlewareFactory {
         );
 
         res.status(403).json({
+        res.status(403).json({
           error: 'Insufficient permissions',
           requiredPermissions,
           requestId: context.requestId,
         });
+        return;
         return;
       }
 
@@ -238,8 +244,11 @@ export class SecurityMiddlewareFactory {
    */
   public createValidationMiddleware(schema: ValidationSchema) {
     return (req: Request, res: Response, next: NextFunction): void => {
+    return (req: Request, res: Response, next: NextFunction): void => {
       const context = req.securityContext;
       if (!context) {
+        res.status(500).json({ error: 'Security context not initialized' });
+        return;
         res.status(500).json({ error: 'Security context not initialized' });
         return;
       }
@@ -256,10 +265,12 @@ export class SecurityMiddlewareFactory {
         });
 
         res.status(400).json({
+        res.status(400).json({
           error: 'Validation failed',
           details: error.details,
           requestId: context.requestId,
         });
+        return;
         return;
       }
 
@@ -291,6 +302,7 @@ export class SecurityMiddlewareFactory {
           statusCode: res.statusCode,
           ipAddress: context.ipAddress,
           timestamp: Date.now(),
+          timestamp: Date.now(),
         });
       });
 
@@ -303,7 +315,10 @@ export class SecurityMiddlewareFactory {
    */
   public createEncryptionMiddleware(sensitiveFields: string[] = []) {
     return (_req: Request, res: Response, next: NextFunction): void => {
+    return (_req: Request, res: Response, next: NextFunction): void => {
       if (!this.config.enableEncryption || sensitiveFields.length === 0) {
+        next();
+        return;
         next();
         return;
       }
@@ -343,6 +358,208 @@ export class SecurityMiddlewareFactory {
           userAgent: req.headers['user-agent'] || 'unknown',
         };
       }
+      next();
+    };
+  }
+
+  /**
+   * Create CSRF protection middleware (double-submit cookie pattern)
+   */
+  public createCsrfMiddleware(options: {
+    ignoreMethods?: string[];
+    cookieName?: string;
+    headerName?: string;
+  } = {}) {
+    const ignoreMethods = options.ignoreMethods || ['GET', 'HEAD', 'OPTIONS'];
+    const cookieName = options.cookieName || 'XSRF-TOKEN';
+    const headerName = options.headerName || 'X-XSRF-TOKEN';
+
+    return (req: Request, res: Response, next: NextFunction) => {
+      const context = req.securityContext;
+
+      // Generate token for all requests (stored in cookie)
+      if (!req.cookies || !req.cookies[cookieName]) {
+        const csrfToken = csrfProtectionService.generateToken(context?.userId);
+
+        res.cookie(cookieName, csrfToken.token, {
+          httpOnly: false, // Must be readable by JavaScript to send in header
+          secure: this.config.environment === 'production',
+          sameSite: 'strict',
+          maxAge: 3600000, // 1 hour
+        });
+
+        // Also send in response header for SPA apps
+        res.setHeader(headerName, csrfToken.token);
+      }
+
+      // Skip validation for safe methods
+      if (ignoreMethods.includes(req.method)) {
+        return next();
+      }
+
+      // Validate CSRF token for state-changing requests
+      const cookieToken = req.cookies?.[cookieName];
+      const headerToken = req.headers[headerName.toLowerCase()] as string;
+
+      if (!cookieToken || !headerToken) {
+        if (context) {
+          auditLogService.logSecurityViolation(
+            context.organizationId,
+            'csrf_token_missing',
+            { requestId: context.requestId }
+          );
+        }
+
+        return res.status(403).json({
+          error: 'CSRF token missing',
+          requestId: context?.requestId,
+        });
+      }
+
+      // Verify double-submit pattern
+      if (!csrfProtectionService.verifyDoubleSubmit(cookieToken, headerToken)) {
+        if (context) {
+          auditLogService.logSecurityViolation(
+            context.organizationId,
+            'csrf_token_invalid',
+            { requestId: context.requestId }
+          );
+        }
+
+        return res.status(403).json({
+          error: 'CSRF token validation failed',
+          requestId: context?.requestId,
+        });
+      }
+
+      // Validate token exists in store
+      if (!csrfProtectionService.validateToken(cookieToken, context?.userId)) {
+        if (context) {
+          auditLogService.logSecurityViolation(
+            context.organizationId,
+            'csrf_token_expired',
+            { requestId: context.requestId }
+          );
+        }
+
+        return res.status(403).json({
+          error: 'CSRF token expired or invalid',
+          requestId: context?.requestId,
+        });
+      }
+
+      next();
+    };
+  }
+
+  /**
+   * Create input sanitization middleware
+   */
+  public createSanitizationMiddleware(options: {
+    sanitizeBody?: boolean;
+    sanitizeQuery?: boolean;
+    sanitizeParams?: boolean;
+    maxLength?: number;
+    detectMalicious?: boolean;
+  } = {}) {
+    const {
+      sanitizeBody = true,
+      sanitizeQuery = true,
+      sanitizeParams = true,
+      maxLength = 10000,
+      detectMalicious = true,
+    } = options;
+
+    return (req: Request, res: Response, next: NextFunction) => {
+      const context = req.securityContext;
+
+      try {
+        // Sanitize request body
+        if (sanitizeBody && req.body) {
+          if (typeof req.body === 'string') {
+            const sanitized = inputSanitizer.sanitize(req.body, { maxLength });
+
+            if (detectMalicious) {
+              const detection = inputSanitizer.detectMaliciousPatterns(req.body);
+              if (detection.isSuspicious && context) {
+                auditLogService.logSecurityViolation(
+                  context.organizationId,
+                  'malicious_input_detected',
+                  {
+                    patterns: detection.patterns,
+                    location: 'body',
+                    requestId: context.requestId,
+                  }
+                );
+              }
+            }
+
+            req.body = sanitized;
+          } else if (typeof req.body === 'object') {
+            req.body = inputSanitizer.sanitizeObject(req.body, { maxLength });
+          }
+        }
+
+        // Sanitize query parameters
+        if (sanitizeQuery && req.query) {
+          const sanitizedQuery: Record<string, any> = {};
+          for (const [key, value] of Object.entries(req.query)) {
+            if (typeof value === 'string') {
+              sanitizedQuery[key] = inputSanitizer.sanitize(value, { maxLength });
+            } else {
+              sanitizedQuery[key] = value;
+            }
+          }
+          req.query = sanitizedQuery;
+        }
+
+        // Sanitize route parameters
+        if (sanitizeParams && req.params) {
+          const sanitizedParams: Record<string, any> = {};
+          for (const [key, value] of Object.entries(req.params)) {
+            if (typeof value === 'string') {
+              sanitizedParams[key] = inputSanitizer.sanitize(value, { maxLength });
+            } else {
+              sanitizedParams[key] = value;
+            }
+          }
+          req.params = sanitizedParams;
+        }
+
+        next();
+      } catch (error) {
+        logger.error('Sanitization middleware error', {
+          error: (error as Error).message,
+          requestId: context?.requestId,
+        });
+
+        res.status(500).json({
+          error: 'Input sanitization failed',
+          requestId: context?.requestId,
+        });
+      }
+    };
+  }
+
+  /**
+   * Create secure cookie middleware
+   */
+  public createSecureCookieMiddleware() {
+    return (_req: Request, res: Response, next: NextFunction): void => {
+      // Override res.cookie to enforce secure defaults
+      const originalCookie = res.cookie.bind(res);
+
+      res.cookie = function(name: string, value: any, options: any = {}) {
+        const secureOptions = {
+          httpOnly: true,
+          secure: configManager.getConfig().environment === 'production',
+          sameSite: 'strict' as const,
+          ...options,
+        };
+
+        return originalCookie(name, value, secureOptions);
+      };
+
       next();
     };
   }

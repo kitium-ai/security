@@ -2,6 +2,13 @@
 
 A production-ready, enterprise-grade security middleware providing consistent secure environments across organizations.
 
+## Package Information
+
+- **Name:** `@kitiumai/security-middleware`
+- **Description:** Enterprise-ready security middleware with identity federation, policy enforcement, observability, and network hardening APIs.
+- **Entry:** `./dist/index.js` (CommonJS) with fully typed definitions at `./dist/index.d.ts`.
+- **Tree-shaking:** `sideEffects: false` – import only the services you need.
+
 > Looking for an enterprise gap analysis and roadmap? See [Enterprise Readiness Evaluation](docs/ENTERPRISE_READINESS.md) for a comparison against big-tech expectations and recommended improvements.
 
 ## Features
@@ -19,7 +26,7 @@ A production-ready, enterprise-grade security middleware providing consistent se
 
 - **Multi-Tenant Support** - Organize-scoped security context
 - **Role-Based Access Control** - Flexible permission system with wildcards
-- **Identity Federation** - OIDC/SAML adapters plus SCIM sync powered by `@kitium-ai/auth`
+- **Identity Federation** - OIDC/SAML adapters plus SCIM sync powered by `@kitiumai/auth`
 - **Policy-as-Code** - OPA/Cedar-inspired PDP middleware with tenant bundles
 - **Security Events** - Detailed security event tracking
 - **Audit Exports** - Export audit logs in JSON/CSV format with response signing and retention checks
@@ -31,7 +38,7 @@ A production-ready, enterprise-grade security middleware providing consistent se
 ## Installation
 
 ```bash
-npm install @enterprise/security-middleware
+npm install @kitiumai/security-middleware
 ```
 
 ## Quick Start
@@ -55,7 +62,7 @@ KMS_KEY_ID=alias/security
 
 ```typescript
 import express from 'express';
-import { createSecuritySuite } from '@enterprise/security-middleware';
+import { createSecuritySuite } from '@kitiumai/security-middleware';
 
 const app = express();
 app.use(express.json());
@@ -78,13 +85,12 @@ suite.apply(app);
 suite.requirePolicy('read', 'health');
 
 // Apply all guardrails (context, mTLS, rate limits, CORS, helmet, audit, tracing, metrics)
-suite.middleware && suite; // just ensures tree-shaking keeps middleware exports
 ```
 
 ### 3. Protect Routes with Policies, Step-Up, and Consent Scopes
 
 ```typescript
-import { securityMiddlewareFactory } from '@enterprise/security-middleware';
+import { securityMiddlewareFactory } from '@kitiumai/security-middleware';
 
 // Protect with authentication
 app.get('/api/profile', securityMiddlewareFactory.createAuthenticationMiddleware(), (req, res) => {
@@ -99,6 +105,83 @@ app.post(
   (req, res) => res.json({ user: req.tokenPayload })
 );
 ```
+
+### 4. Bootstrap From `initializeSecurityMiddleware`
+
+```typescript
+import { initializeSecurityMiddleware } from '@kitiumai/security-middleware';
+
+async function start() {
+  const {
+    factory,
+    authenticationService,
+    authorizationService,
+    config,
+  } = await initializeSecurityMiddleware();
+
+  app.use(factory.createRequestContextMiddleware());
+  app.get('/me', factory.createAuthenticationMiddleware(), (req, res) => {
+    const permissions = authorizationService.getPermissionsForRole(req.tokenPayload.role);
+    res.json({ user: req.tokenPayload, permissions, env: config.environment });
+  });
+}
+
+start().catch((error) => {
+  console.error('Security middleware failed to start', error);
+  process.exit(1);
+});
+```
+
+## API Surface
+
+### Configuration & Bootstrapping
+
+- `ConfigManager` / `configManager` – Runtime configuration loader with validation helpers for encryption, rate limiting, network, and identity settings.
+- `applySecureDefaults` / `createSecuritySuite` – Compose best-practice middleware stacks with guardrails, policy hooks, and dependency injection.
+- `initializeSecurityMiddleware()` – Async bootstrapper that validates configuration, hydrates services, and returns ready-to-use middleware factories.
+- `generateConfigTemplate()` – CLI helper that emits hardened `.env` or config templates.
+- `rotateKeys()` – Convenience command for rotating JWKS and signing keys.
+- `validateEnvironment()` – CLI/API helper that returns actionable validation errors for missing secrets.
+
+### Core Services
+
+- `AuthenticationService` / `authenticationService` – Issue, verify, refresh, and introspect JWTs plus password hashing utilities.
+- `AuthorizationService` / `authorizationService` – RBAC/ABAC helpers to evaluate permissions, roles, and policy mappings.
+- `AuditLogService` / `auditLogService` – Structured event logging with request correlation, retention policies, and export helpers.
+- `CSRFProtectionService` / `csrfProtectionService` – CSRF token issuance/verification and double-submit cookie enforcement.
+- `EncryptionService` / `encryptionService` – AES-GCM encryption/decryption utilities plus hashing helpers.
+- `InputSanitizer` / `inputSanitizer` – Sanitization helpers that neutralize injections before validation.
+- `logger` – Winston-powered logger pre-wired with contextual metadata.
+
+### Advanced Services
+
+- `IdentityFederationService` / `identityFederationService` – OIDC + SAML adapters, SCIM ingestion, consent scopes, and step-up auth helpers.
+- `PolicyEngineService` / `policyEngineService` – OPA/Cedar-inspired PDP middleware with bundle loading and backend selection.
+- `ObservabilityService` / `observabilityService` – OpenTelemetry tracing, metrics logging, readiness/liveness endpoints.
+- `NetworkProtectionService` / `networkProtectionService` – mTLS enforcement, IP policies, payload guards, response signing, and malware scanning hooks.
+- `SecretProviderService` / `secretProviderService` – Abstracted secret fetching and rotation across namespaces/providers.
+- `KeyManagementService` / `keyManagementService` – JWKS rotation, envelope encryption, and token revocation utilities.
+- `DataGovernanceService` / `dataGovernanceService` – Data classification, masking, and retention enforcement primitives.
+
+### Middleware & Server
+
+- `SecurityMiddlewareFactory` / `securityMiddlewareFactory` – Builder for request ID, helmet, CORS, rate limit, authentication, authorization, validation, and context middlewares.
+- `TLSConfigurationService` / `tlsConfigurationService` – Hardened HTTPS/mTLS configuration utilities.
+- `TLSConfig`, `HTTPSServerOptions` – Type definitions describing TLS options returned by the server helpers.
+
+### Database Security
+
+- `SafeQueryBuilder` / `safeQueryBuilder` – Tagged template literal helper for parameterized SQL.
+- `SQLInjectionExamples` / `sqlInjectionExamples` – Teaching utilities showing safe vs unsafe query patterns.
+- `DatabaseValidation` / `databaseValidation` – Validation helpers for database configuration and schema hardening.
+
+### CLI & Utilities
+
+- `generateConfigTemplate`, `rotateKeys`, `validateEnvironment` – CLI-friendly functions exported for automation scripts (also listed above for bootstrapping).
+
+### Types
+
+- `SecurityContext`, `SecurityConfig`, `AuthTokenPayload`, `AuditLog`, `RateLimitConfig`, `EncryptionConfig`, `AuthorizationPolicy`, `SecurityEvent`, `ValidationSchema` – Fully typed interfaces for building on top of the middleware.
 
 ## API Documentation
 
@@ -136,7 +219,7 @@ app.post(
 
 #### IdentityFederationService
 
-- `createOidcMiddleware(provider)` - Plug-and-play OIDC login using `@kitium-ai/auth`
+- `createOidcMiddleware(provider)` - Plug-and-play OIDC login using `@kitiumai/auth`
 - `createSamlMiddleware(provider)` - Enterprise SAML adapter
 - `handleScimSync(event)` - SCIM provisioning callback handler
 - `requireConsentScopes(scopes)` - Enforce fine-grained consent gates
@@ -265,7 +348,7 @@ app.post('/register', factory.createValidationMiddleware(schema));
 ### Programmatic Configuration
 
 ```typescript
-import { configManager } from '@enterprise/security-middleware';
+import { configManager } from '@kitiumai/security-middleware';
 
 const config = configManager.getConfig();
 configManager.updateConfig({
@@ -309,7 +392,7 @@ if (!validation.valid) {
 Register custom policies:
 
 ```typescript
-import { authorizationService } from '@enterprise/security-middleware';
+import { authorizationService } from '@kitiumai/security-middleware';
 
 authorizationService.registerPolicy({
   role: 'analyst',

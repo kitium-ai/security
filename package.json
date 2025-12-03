@@ -2,8 +2,24 @@
   "name": "@kitiumai/security-middleware",
   "version": "1.0.0",
   "description": "Enterprise-ready security middleware providing consistent secure environment across organizations",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "type": "commonjs",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/index.ts",
@@ -36,11 +52,29 @@
   "keywords": [
     "security",
     "middleware",
-    "enterprise",
+    "zero-trust",
     "authentication",
     "authorization",
+    "api-security",
     "encryption",
-    "audit"
+    "key-management",
+    "identity",
+    "policy-engine",
+    "rate-limiting",
+    "ddos-protection",
+    "csrf",
+    "tls",
+    "audit-logging",
+    "compliance",
+    "governance",
+    "secrets-management",
+    "observability",
+    "express",
+    "nodejs",
+    "typescript",
+    "enterprise",
+    "kitium",
+    "kitiumai"
   ],
   "author": "Kitium AI",
   "license": "MIT",
@@ -49,6 +83,7 @@
     "@kitiumai/logger": "^2.0.1",
     "@kitiumai/types": "^2.0.1",
     "@kitiumai/utils-ts": "^2.0.2",
+    "@kitiumai/auth": "^4.0.1",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.20.0",
     "cookie-parser": "^1.4.6",
@@ -79,5 +114,20 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.6.0",
     "vitest": "^2.1.9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kitium-ai/security.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kitium-ai/security/issues"
+  },
+  "homepage": "https://github.com/kitium-ai/security#readme",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

@@ -125,7 +125,9 @@ export class InputSanitizer {
 
     // Remove dangerous characters
     return sanitized.replace(/[<>()[\]\\,;:\s@"]/g, (char) => {
-      if (char === '@') return '@';
+      if (char === '@') {
+        return '@';
+      }
       return '';
     });
   }
@@ -177,7 +179,7 @@ export class InputSanitizer {
     let sanitized = filename.replace(/\.\./g, '');
 
     // Remove directory separators
-    sanitized = sanitized.replace(/[\/\\]/g, '');
+    sanitized = sanitized.replace(/[/\\]/g, '');
 
     // Remove null bytes
     sanitized = sanitized.replace(/\0/g, '');

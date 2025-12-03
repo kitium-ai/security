@@ -7,6 +7,7 @@ import {
   initializeSecurityMiddleware,
   authenticationService,
   authorizationService,
+  auditLogService,
 } from '../index';
 
 let app: Express;
@@ -145,9 +146,7 @@ async function initializeApp(): Promise<Express> {
         return;
       }
 
-      const logs = require('../services/auditLog').auditLogService.getLogsForOrganization(
-        context.organizationId
-      );
+      const logs = auditLogService.getLogsForOrganization(context.organizationId);
 
       res.json({
         logs,

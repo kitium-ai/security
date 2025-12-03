@@ -1,5 +1,9 @@
 /**
  * Authentication Service
+ *
+ * Note: This service uses bcryptjs for password hashing instead of @kitiumai/auth
+ * because @kitiumai/auth uses PBKDF2 which is incompatible with existing bcrypt hashes.
+ * Migrating to @kitiumai/auth would require rehashing all existing passwords.
  */
 
 import jwt from 'jsonwebtoken';

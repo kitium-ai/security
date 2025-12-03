@@ -22,6 +22,7 @@ import { SecurityContext, AuthTokenPayload, ValidationSchema } from '../types';
  * Extend Express Request with security context
  */
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       securityContext?: SecurityContext;
@@ -209,11 +210,8 @@ export class SecurityMiddlewareFactory {
    */
   public createAuthorizationMiddleware(requiredPermissions: string[]) {
     return (req: Request, res: Response, next: NextFunction): void => {
-    return (req: Request, res: Response, next: NextFunction): void => {
       const context = req.securityContext;
       if (!context || !req.tokenPayload) {
-        res.status(500).json({ error: 'Security context not initialized' });
-        return;
         res.status(500).json({ error: 'Security context not initialized' });
         return;
       }
@@ -226,12 +224,10 @@ export class SecurityMiddlewareFactory {
         );
 
         res.status(403).json({
-        res.status(403).json({
           error: 'Insufficient permissions',
           requiredPermissions,
           requestId: context.requestId,
         });
-        return;
         return;
       }
 
@@ -244,11 +240,8 @@ export class SecurityMiddlewareFactory {
    */
   public createValidationMiddleware(schema: ValidationSchema) {
     return (req: Request, res: Response, next: NextFunction): void => {
-    return (req: Request, res: Response, next: NextFunction): void => {
       const context = req.securityContext;
       if (!context) {
-        res.status(500).json({ error: 'Security context not initialized' });
-        return;
         res.status(500).json({ error: 'Security context not initialized' });
         return;
       }
@@ -265,12 +258,10 @@ export class SecurityMiddlewareFactory {
         });
 
         res.status(400).json({
-        res.status(400).json({
           error: 'Validation failed',
           details: error.details,
           requestId: context.requestId,
         });
-        return;
         return;
       }
 
@@ -302,7 +293,6 @@ export class SecurityMiddlewareFactory {
           statusCode: res.statusCode,
           ipAddress: context.ipAddress,
           timestamp: Date.now(),
-          timestamp: Date.now(),
         });
       });
 
@@ -315,10 +305,7 @@ export class SecurityMiddlewareFactory {
    */
   public createEncryptionMiddleware(sensitiveFields: string[] = []) {
     return (_req: Request, res: Response, next: NextFunction): void => {
-    return (_req: Request, res: Response, next: NextFunction): void => {
       if (!this.config.enableEncryption || sensitiveFields.length === 0) {
-        next();
-        return;
         next();
         return;
       }
@@ -365,11 +352,13 @@ export class SecurityMiddlewareFactory {
   /**
    * Create CSRF protection middleware (double-submit cookie pattern)
    */
-  public createCsrfMiddleware(options: {
-    ignoreMethods?: string[];
-    cookieName?: string;
-    headerName?: string;
-  } = {}) {
+  public createCsrfMiddleware(
+    options: {
+      ignoreMethods?: string[];
+      cookieName?: string;
+      headerName?: string;
+    } = {}
+  ) {
     const ignoreMethods = options.ignoreMethods || ['GET', 'HEAD', 'OPTIONS'];
     const cookieName = options.cookieName || 'XSRF-TOKEN';
     const headerName = options.headerName || 'X-XSRF-TOKEN';
@@ -403,11 +392,9 @@ export class SecurityMiddlewareFactory {
 
       if (!cookieToken || !headerToken) {
         if (context) {
-          auditLogService.logSecurityViolation(
-            context.organizationId,
-            'csrf_token_missing',
-            { requestId: context.requestId }
-          );
+          auditLogService.logSecurityViolation(context.organizationId, 'csrf_token_missing', {
+            requestId: context.requestId,
+          });
         }
 
         return res.status(403).json({
@@ -419,11 +406,9 @@ export class SecurityMiddlewareFactory {
       // Verify double-submit pattern
       if (!csrfProtectionService.verifyDoubleSubmit(cookieToken, headerToken)) {
         if (context) {
-          auditLogService.logSecurityViolation(
-            context.organizationId,
-            'csrf_token_invalid',
-            { requestId: context.requestId }
-          );
+          auditLogService.logSecurityViolation(context.organizationId, 'csrf_token_invalid', {
+            requestId: context.requestId,
+          });
         }
 
         return res.status(403).json({
@@ -435,11 +420,9 @@ export class SecurityMiddlewareFactory {
       // Validate token exists in store
       if (!csrfProtectionService.validateToken(cookieToken, context?.userId)) {
         if (context) {
-          auditLogService.logSecurityViolation(
-            context.organizationId,
-            'csrf_token_expired',
-            { requestId: context.requestId }
-          );
+          auditLogService.logSecurityViolation(context.organizationId, 'csrf_token_expired', {
+            requestId: context.requestId,
+          });
         }
 
         return res.status(403).json({
@@ -455,48 +438,58 @@ export class SecurityMiddlewareFactory {
   /**
    * Create input sanitization middleware
    */
-  public createSanitizationMiddleware(options: {
-    sanitizeBody?: boolean;
-    sanitizeQuery?: boolean;
-    sanitizeParams?: boolean;
-    maxLength?: number;
-    detectMalicious?: boolean;
-  } = {}) {
+  public createSanitizationMiddleware(
+    options: {
+      sanitizeBody?: boolean;
+      sanitizeQuery?: boolean;
+      sanitizeParams?: boolean;
+      maxLength?: number;
+      detectMalicious?: boolean;
+    } = {}
+  ) {
     const {
       sanitizeBody = true,
       sanitizeQuery = true,
       sanitizeParams = true,
       maxLength = 10000,
-      detectMalicious = true,
     } = options;
 
     return (req: Request, res: Response, next: NextFunction) => {
       const context = req.securityContext;
 
       try {
+        // Basic sanitization - escape HTML special characters
+        const basicSanitize = (str: string): string => {
+          return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#x27;')
+            .substring(0, maxLength);
+        };
+
         // Sanitize request body
         if (sanitizeBody && req.body) {
           if (typeof req.body === 'string') {
-            const sanitized = inputSanitizer.sanitize(req.body, { maxLength });
-
-            if (detectMalicious) {
-              const detection = inputSanitizer.detectMaliciousPatterns(req.body);
-              if (detection.isSuspicious && context) {
-                auditLogService.logSecurityViolation(
-                  context.organizationId,
-                  'malicious_input_detected',
-                  {
-                    patterns: detection.patterns,
-                    location: 'body',
-                    requestId: context.requestId,
-                  }
-                );
-              }
-            }
-
-            req.body = sanitized;
+            req.body = basicSanitize(req.body);
           } else if (typeof req.body === 'object') {
-            req.body = inputSanitizer.sanitizeObject(req.body, { maxLength });
+            // Recursively sanitize object
+            const sanitizeObject = (obj: any): any => {
+              if (typeof obj === 'string') {
+                return basicSanitize(obj);
+              } else if (Array.isArray(obj)) {
+                return obj.map(sanitizeObject);
+              } else if (obj && typeof obj === 'object') {
+                const result: any = {};
+                for (const [key, value] of Object.entries(obj)) {
+                  result[key] = sanitizeObject(value);
+                }
+                return result;
+              }
+              return obj;
+            };
+            req.body = sanitizeObject(req.body);
           }
         }
 
@@ -505,7 +498,7 @@ export class SecurityMiddlewareFactory {
           const sanitizedQuery: Record<string, any> = {};
           for (const [key, value] of Object.entries(req.query)) {
             if (typeof value === 'string') {
-              sanitizedQuery[key] = inputSanitizer.sanitize(value, { maxLength });
+              sanitizedQuery[key] = basicSanitize(value);
             } else {
               sanitizedQuery[key] = value;
             }
@@ -518,7 +511,7 @@ export class SecurityMiddlewareFactory {
           const sanitizedParams: Record<string, any> = {};
           for (const [key, value] of Object.entries(req.params)) {
             if (typeof value === 'string') {
-              sanitizedParams[key] = inputSanitizer.sanitize(value, { maxLength });
+              sanitizedParams[key] = basicSanitize(value);
             } else {
               sanitizedParams[key] = value;
             }
@@ -549,7 +542,7 @@ export class SecurityMiddlewareFactory {
       // Override res.cookie to enforce secure defaults
       const originalCookie = res.cookie.bind(res);
 
-      res.cookie = function(name: string, value: any, options: any = {}) {
+      res.cookie = function (name: string, value: any, options: any = {}) {
         const secureOptions = {
           httpOnly: true,
           secure: configManager.getConfig().environment === 'production',

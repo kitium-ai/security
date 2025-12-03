@@ -39,7 +39,7 @@ describe('AuthenticationService', () => {
 
     it('should reject expired tokens', () => {
       // Create a token that expires immediately
-      const shortLivedPayload = {
+      const _shortLivedPayload = {
         ...testPayload,
         exp: Math.floor(Date.now() / 1000) - 10, // Expired 10 seconds ago
       };

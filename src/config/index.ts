@@ -35,6 +35,13 @@ export class ConfigManager {
       rateLimitMaxRequests: parseInt(process.env['RATE_LIMIT_MAX_REQUESTS'] || '100', 10),
       auditLogPath: process.env['AUDIT_LOG_PATH'] || './logs/audit.log',
       logLevel: (process.env['LOG_LEVEL'] as SecurityConfig['logLevel']) || 'info',
+      tracingEnabled: process.env['TRACING_ENABLED'] === 'true',
+      metricsEnabled: process.env['METRICS_ENABLED'] === 'true',
+      readinessPath: process.env['READINESS_PATH'] || '/health/ready',
+      livenessPath: process.env['LIVENESS_PATH'] || '/health/live',
+      featureFlags: {},
+      jwksRotationIntervalMinutes: parseInt(process.env['JWKS_ROTATION_INTERVAL'] || '60', 10),
+      tokenRevocationTtlMinutes: parseInt(process.env['TOKEN_REVOCATION_TTL'] || '60', 10),
     };
   }
 
@@ -79,6 +86,14 @@ export class ConfigManager {
 
     if (this.config.rateLimitMaxRequests <= 0) {
       errors.push('Rate limit max requests must be positive');
+    }
+
+    if (!this.config.responseSigningKey) {
+      errors.push('RESPONSE_SIGNING_KEY is required for response signing');
+    }
+
+    if (!this.config.kmsKeyId) {
+      errors.push('KMS_KEY_ID must be defined to support envelope encryption');
     }
 
     return {

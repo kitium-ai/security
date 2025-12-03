@@ -114,7 +114,7 @@ app.post('/api/auth/login', async (req, res): Promise<void> => {
       token,
       expiresIn: 86400,
     });
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Login failed' });
   }
 });

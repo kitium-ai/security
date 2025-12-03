@@ -1,15 +1,11 @@
-# Enterprise Security Middleware
+# @kitiumai/security-middleware
 
-A production-ready, enterprise-grade security middleware providing consistent secure environments across organizations.
+Enterprise-ready security middleware with identity federation, policy enforcement, observability, and network hardening APIs
 
 ## Package Information
 
-- **Name:** `@kitiumai/security-middleware`
-- **Description:** Enterprise-ready security middleware with identity federation, policy enforcement, observability, and network hardening APIs.
 - **Entry:** `./dist/index.js` (CommonJS) with fully typed definitions at `./dist/index.d.ts`.
 - **Tree-shaking:** `sideEffects: false` – import only the services you need.
-
-> Looking for an enterprise gap analysis and roadmap? See [Enterprise Readiness Evaluation](docs/ENTERPRISE_READINESS.md) for a comparison against big-tech expectations and recommended improvements.
 
 ## Features
 
